@@ -1,0 +1,150 @@
+version: '3.8'
+
+# Enterprise-hardened single-node deployment layout for Zero-Overage isolation.
+# Engineered to run via `docker compose -f production-compose.yml up -d` 
+
+services:
+  # ----------------------------------------------------------------------
+  # INGRESS LAYER: Highly Optimized Nginx Reverse Proxy
+  # ----------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      # External mount for Certbot/Let's Encrypt automated SSL generation
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - frontend_fabric
+    depends_on:
+      - api
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ----------------------------------------------------------------------
+  # CORE ENGINE: FastAPI Integration Router
+  # ----------------------------------------------------------------------
+  api:
+    image: ghcr.io/ultimate-backend:latest
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+    networks:
+      - frontend_fabric
+      - backend_fabric
+    # Secure Docker secret handoffs ensuring passwords are never stored in ENV strings
+    secrets:
+      - db_password
+      - redis_password
+    environment:
+      - DATABASE_URL=postgresql://postgres:/run/secrets/db_password@db:5432/leaddb
+      - REDIS_URL=redis://:/run/secrets/redis_password@redis:6379/0
+      - ENVIRONMENT=production
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # ----------------------------------------------------------------------
+  # AUTOMATION WORKER: Celery Task Pipeline
+  # ----------------------------------------------------------------------
+  worker:
+    image: ghcr.io/ultimate-backend:latest
+    command: celery -A main.celery_app worker --loglevel=warning --concurrency=4
+    networks:
+      - backend_fabric
+    secrets:
+      - db_password
+      - redis_password
+    environment:
+      - DATABASE_URL=postgresql://postgres:/run/secrets/db_password@db:5432/leaddb
+      - REDIS_URL=redis://:/run/secrets/redis_password@redis:6379/0
+      - ENVIRONMENT=production
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+
+  # ----------------------------------------------------------------------
+  # PERSISTENCE LAYER: PostgreSQL Transactional DB
+  # ----------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    networks:
+      - backend_fabric
+    secrets:
+      - db_password
+    environment:
+      POSTGRES_USER: postgres
+      # Instructs PG to read securely mounted RAM-backed file instead of plaintext ENV
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_DB: leaddb
+    volumes:
+      - postgres_production_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d leaddb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+
+  # ----------------------------------------------------------------------
+  # SERVERLESS CACHE: Local Redis simulating Upstash
+  # ----------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    networks:
+      - backend_fabric
+    secrets:
+      - redis_password
+    # Replicating absolute serverless budget limits locally
+    command: >
+      sh -c "redis-server --requirepass $$(cat /run/secrets/redis_password) --maxmemory 256mb --maxmemory-policy allkeys-lru"
+    volumes:
+      - redis_production_data:/data
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 300M
+
+# Isolated Overlay Network Fabrics
+networks:
+  frontend_fabric:
+    driver: bridge
+  backend_fabric:
+    driver: bridge
+
+# Persistent State Volumes
+volumes:
+  postgres_production_data:
+  redis_production_data:
+
+# Secure Docker Secrets Path Mappings
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  redis_password:
+    file: ./secrets/redis_password.txt

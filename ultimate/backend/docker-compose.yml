@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  # 1. API: The FastAPI engine handling incoming HTTP requests
+  api:
+    build: .
+    # Overriding default command to enable Uvicorn hot-reloading for local development
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    volumes:
+      # Mount the local directory to /app for live code updates without rebuilding
+      - .:/app
+    ports:
+      # Map host port 8000 to container port 8000
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/leaddb
+      - REDIS_URL=redis://:securepassword@redis:6379/0
+      - ENVIRONMENT=development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # 2. WORKER: The Celery asynchronous task engine for background processing
+  worker:
+    build: .
+    # Start Celery worker with specific concurrency and log levels
+    # -A main.celery_app specifies the celery app instance
+    command: celery -A main.celery_app worker --loglevel=info --concurrency=2
+    volumes:
+      # Mount local code to ensure the worker also has hot-reloading context
+      - .:/app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/leaddb
+      - REDIS_URL=redis://:securepassword@redis:6379/0
+      # Local rate-limiting environment variables simulating production / zero-touch constraints
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - RATE_LIMIT_WINDOW_SECONDS=60
+      - CELERY_TASK_RATE_LIMIT=10/m
+    depends_on:
+      - redis
+      - db
+
+  # 3. DB: PostgreSQL 16 container managing multi-tenant schemas
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=leaddb
+    ports:
+      - "5432:5432"
+    volumes:
+      # Persist database records locally across container restarts
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Use pg_isready to verify the database is actively accepting connections
+      test: ["CMD-SHELL", "pg_isready -U postgres -d leaddb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 4. REDIS: Secured local Redis simulating Upstash free-tier constraints
+  redis:
+    image: redis:7-alpine
+    # Simulating Upstash constraints:
+    # --requirepass: Enforces auth exactly like production Upstash REST/TLS URLs
+    # --maxmemory 256mb: Strict memory boundary replicating a free tier
+    # --maxmemory-policy allkeys-lru: Auto-evicts older keys when memory is saturated
+    command: redis-server --requirepass securepassword --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  # Named volumes for state persistence
+  postgres_data:
+  redis_data:
