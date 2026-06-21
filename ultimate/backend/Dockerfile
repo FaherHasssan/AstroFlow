@@ -31,18 +31,12 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# 🚀 CHANGED 'appuser' TO 'astroapp' TO AVOID THE EXIT CODE 9 CONFLICT
+RUN groupadd -r astroapp && useradd -r -g astroapp astroapp
 
 WORKDIR /app
 
-
-# Create a dedicated non-root user and group ('appuser') for enhanced security.
-# Running as a non-root user mitigates the risk of privilege escalation if the container is compromised.
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-
-WORKDIR /app
-
-# Install runtime system dependencies (e.g., PostgreSQL client libraries, curl for healthchecks)
+# Install runtime system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
@@ -58,25 +52,15 @@ RUN pip install --no-cache /wheels/*
 # Copy the application source code into the container
 COPY . /app
 
-# Change ownership of the application directory to the non-root user
-RUN chown -R appuser:appuser /app
+# 🚀 UPDATE OWNERSHIP TO THE NEW USER
+RUN chown -R astroapp:astroapp /app
 
-# Switch to the non-root user for all subsequent commands
-USER appuser
+# 🚀 SWITCH TO THE NEW USER
+USER astroapp
 
-# Healthcheck to verify the FastAPI application is responsive.
-# - interval=30s: Wait 30s between checks
-# - timeout=5s: Fail the check if no response within 5s
-# - start-period=10s: Give the app 10s to boot before starting checks
-# - retries=3: Mark container as unhealthy after 3 consecutive failures
-RUN chown -R appuser:appuser /app
-USER appuser
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Expose the application port to the Docker network
 EXPOSE 8000
 
-# Default command to run the FastAPI application via Uvicorn.
-# In production, this might be managed by gunicorn with uvicorn workers.
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
