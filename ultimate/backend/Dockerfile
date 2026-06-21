@@ -71,4 +71,4 @@ EXPOSE 8000
 
 # Default command to run the FastAPI application via Uvicorn.
 # In production, this might be managed by gunicorn with uvicorn workers.
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
