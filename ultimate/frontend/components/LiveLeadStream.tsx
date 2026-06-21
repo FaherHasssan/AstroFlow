@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { Activity, X, FileJson, Clock, Hash, CheckCircle2, ShieldOff, Server } from 'lucide-react';
+import { Activity, X, FileJson, Clock, Hash, CheckCircle2, ShieldOff, ShieldAlert, Server } from 'lucide-react';
 import clsx from 'clsx';
 
 interface LeadActivity {
