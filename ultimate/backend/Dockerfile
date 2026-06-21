@@ -29,6 +29,12 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+WORKDIR /app
+
 
 # Create a dedicated non-root user and group ('appuser') for enhanced security.
 # Running as a non-root user mitigates the risk of privilege escalation if the container is compromised.
@@ -63,6 +69,8 @@ USER appuser
 # - timeout=5s: Fail the check if no response within 5s
 # - start-period=10s: Give the app 10s to boot before starting checks
 # - retries=3: Mark container as unhealthy after 3 consecutive failures
+RUN chown -R appuser:appuser /app
+USER appuser
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
