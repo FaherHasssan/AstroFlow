@@ -70,7 +70,7 @@ export default function IntegrationGateways() {
           description="Generate mathematically unique, secure webhook URLs to provision directly within Property Finder and Bayut dashboards."
           icon={<Webhook className="w-5 h-5 text-emerald-400" />}
           fields={[
-            { label: "Assigned Ingress Webhook Endpoint", placeholder: "https://api.ultimate360.ae/webhook/pf_x92" },
+            { label: "Assigned Ingress Webhook Endpoint", placeholder: "https://api.astroflow.ae/webhook/pf_x92" },
             { label: "Authorization Payload Signature", placeholder: "HMAC Verification Secret", type: "password" }
           ]}
         />

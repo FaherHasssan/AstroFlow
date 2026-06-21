@@ -1,0 +1,78 @@
+# Render Infrastructure as Code Blueprint
+# https://render.com/docs/blueprint-spec
+
+version: "1"
+
+services:
+  # ---------------------------------------------------------
+  # 1. POSTGRESQL DATABASE (Optional, using Supabase natively instead)
+  # ---------------------------------------------------------
+  # If you wanted to use Render's managed DB, uncomment below:
+  # databases:
+  #   - name: astroflow-db
+  #     databaseName: leaddb
+  #     user: postgres
+  #     plan: free
+
+  # ---------------------------------------------------------
+  # 2. FASTAPI BACKEND SERVICE
+  # ---------------------------------------------------------
+  - type: web
+    name: astroflow-api
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free # Can be upgraded to starter
+    region: frankfurt # Geographically closer to UAE
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false # Requires manual entry of Supabase URL in Render Dashboard
+      - key: REDIS_URL
+        sync: false # Requires manual entry of Upstash URL in Render Dashboard
+      - key: META_APP_SECRET
+        sync: false
+      - key: META_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_ID
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: GOOGLE_ADS_DEVELOPER_TOKEN
+        sync: false
+
+  # ---------------------------------------------------------
+  # 3. CELERY BACKGROUND WORKER
+  # ---------------------------------------------------------
+  - type: worker
+    name: astroflow-worker
+    env: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: "celery -A app.main.celery_app worker --loglevel=info --concurrency=2"
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+
+  # ---------------------------------------------------------
+  # 4. NEXT.JS ADMIN DASHBOARD (FRONTEND)
+  # ---------------------------------------------------------
+  - type: web
+    name: astroflow-dashboard
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    rootDir: frontend
+    plan: free
+    region: frankfurt
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://astroflow-api.onrender.com # Auto-generated hostname by Render

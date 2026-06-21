@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Ultimate 360 - Production Node Cloud-Init Provisioning Engine
+# AstroFlow - Production Node Cloud-Init Provisioning Engine
 # Automatically installs runtimes, hardens firewalls, and initializes automated 
 # encrypted PostgreSQL backup cronjobs for raw server initialization.
 # ==============================================================================
@@ -50,7 +50,7 @@ systemctl start docker
 
 # 4. Encrypted PostgreSQL Backup System Automation
 echo "[*] Deploying automated encrypted Postgres backup cronjob system..."
-BACKUP_DIR="/var/backups/ultimate360_postgres"
+BACKUP_DIR="/var/backups/astroflow_postgres"
 mkdir -p "$BACKUP_DIR"
 chmod 700 "$BACKUP_DIR"
 
@@ -63,7 +63,7 @@ chmod 400 "$BACKUP_DIR/.encryption_key"
 cat << 'EOF' > /usr/local/bin/pg_backup.sh
 #!/bin/bash
 set -e
-BACKUP_DIR="/var/backups/ultimate360_postgres"
+BACKUP_DIR="/var/backups/astroflow_postgres"
 KEY_FILE="$BACKUP_DIR/.encryption_key"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 TEMP_DUMP="/tmp/db_dump_$TIMESTAMP.sql"
@@ -81,7 +81,7 @@ openssl enc -aes-256-cbc -salt -in "$TEMP_DUMP" -out "$ENCRYPTED_FILE" -pass fil
 rm "$TEMP_DUMP"
 find "$BACKUP_DIR" -name "*.enc" -type f -mtime +30 -delete
 
-logger "Ultimate360 PostgreSQL backup cleanly generated, encrypted, and secured: $ENCRYPTED_FILE"
+logger "AstroFlow PostgreSQL backup cleanly generated, encrypted, and secured: $ENCRYPTED_FILE"
 EOF
 
 chmod +x /usr/local/bin/pg_backup.sh

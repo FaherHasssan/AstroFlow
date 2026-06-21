@@ -1,4 +1,4 @@
-# Ultimate 360 - Site Reliability Operations Runbook
+# AstroFlow - Site Reliability Operations Runbook
 **Target Platform:** Multi-Tenant Real Estate Lead Routing  
 **Designation:** Zero-Downtime Budget Failsafe Orchestration
 
@@ -28,9 +28,9 @@ Ensure the worker is mounted securely onto the production VM, bypassing standard
 **Code Link:** [app/core/metrics.py](file:///C:/Users/Faher/Documents/Work/Ultimate%20360/ultimate/backend/app/core/metrics.py)
 
 ### Exposed Metric Keys:
-- `ultimate360_daily_spend_aed`: Track the live financial burn rate per active tenant boundary.
-- `ultimate360_budget_shield_rejections_total`: Quantifies how many incoming API requests were blocked via HTTP `429` *after* the boundary limit was breached.
-- `ultimate360_api_processing_latency_seconds`: Generates heatmap buckets identifying asynchronous database bottleneck scenarios.
+- `astroflow_daily_spend_aed`: Track the live financial burn rate per active tenant boundary.
+- `astroflow_budget_shield_rejections_total`: Quantifies how many incoming API requests were blocked via HTTP `429` *after* the boundary limit was breached.
+- `astroflow_api_processing_latency_seconds`: Generates heatmap buckets identifying asynchronous database bottleneck scenarios.
 
 ---
 

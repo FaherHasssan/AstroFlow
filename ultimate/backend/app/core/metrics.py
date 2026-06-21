@@ -10,7 +10,7 @@ import time
 # 1. Current Day Spend Accumulated
 # Evaluates and visualizes the precise micro-transaction cost allocation per tenant dynamically.
 BUDGET_SPEND_GAUGE = Gauge(
-    "ultimate360_daily_spend_aed",
+    "astroflow_daily_spend_aed",
     "Accumulated daily compute spend per tenant evaluated in AED.",
     ["tenant_id"]
 )
@@ -19,7 +19,7 @@ BUDGET_SPEND_GAUGE = Gauge(
 # A monotonically increasing counter tracking every instance where the ASGI Edge 
 # middleware drops an ingress request with a 429 status code.
 BUDGET_SHIELD_REJECTIONS = Counter(
-    "ultimate360_budget_shield_rejections_total",
+    "astroflow_budget_shield_rejections_total",
     "Total incoming webhooks dropped instantly by the ASGI middleware due to budget cap.",
     ["tenant_id"]
 )
@@ -27,7 +27,7 @@ BUDGET_SHIELD_REJECTIONS = Counter(
 # 3. Asynchronous Processing Latency Rate
 # Detailed execution time distribution buckets highlighting slow integration paths.
 PROCESSING_LATENCY = Histogram(
-    "ultimate360_api_processing_latency_seconds",
+    "astroflow_api_processing_latency_seconds",
     "API request processing time in seconds tracking pipeline health.",
     ["endpoint"],
     buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.5, 5.0, float("inf"))

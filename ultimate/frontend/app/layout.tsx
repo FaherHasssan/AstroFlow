@@ -7,7 +7,7 @@ import clsx from 'clsx';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Ultimate 360 - Admin Platform',
+  title: 'AstroFlow - Admin Platform',
   description: 'Zero-touch automated multi-tenant real estate lead platform',
 };
 
@@ -27,7 +27,7 @@ export default function RootLayout({
               <div className="w-6 h-6 rounded bg-emerald-500/20 border border-emerald-500/50 flex items-center justify-center shadow-inner">
                 <Building2 className="w-3.5 h-3.5 text-emerald-400" />
               </div>
-              Ultimate 360
+              AstroFlow
             </span>
           </div>
           

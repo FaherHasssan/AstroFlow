@@ -31,7 +31,7 @@ services:
   # CORE ENGINE: FastAPI Integration Router
   # ----------------------------------------------------------------------
   api:
-    image: ghcr.io/ultimate-backend:latest
+    image: ghcr.io/astroflow-backend:latest
     command: uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
     networks:
       - frontend_fabric
@@ -60,7 +60,7 @@ services:
   # AUTOMATION WORKER: Celery Task Pipeline
   # ----------------------------------------------------------------------
   worker:
-    image: ghcr.io/ultimate-backend:latest
+    image: ghcr.io/astroflow-backend:latest
     command: celery -A main.celery_app worker --loglevel=warning --concurrency=4
     networks:
       - backend_fabric
