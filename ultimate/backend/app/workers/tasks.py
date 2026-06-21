@@ -1,10 +1,14 @@
 import logging
 import urllib.parse
+import uuid
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import sessionmaker
+from pydantic import ValidationError
 
 from app.core.config import settings
-from app.models.domain import SystemBudgetLedger, LeadRecord
+from app.models.domain import SystemBudgetLedger, LeadRecord, Tenant
+from app.services.lead_parser import LeadParserService
+from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +17,62 @@ engine = create_engine(settings.DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+@celery_app.task(name="app.workers.tasks.process_incoming_lead", bind=True, max_retries=3)
+def process_incoming_lead(self, source: str, raw_payload: dict):
+    """
+    Entry point for every inbound webhook (Meta, Google, etc).
+    Parses the raw provider payload, persists it as a LeadRecord, then
+    delegates to process_lead_and_generate_links for the budget-aware
+    WhatsApp link generation step.
+
+    ASSUMPTION: this currently resolves the single active Tenant row in
+    the database (the platform isn't routing webhooks per-tenant yet).
+    If you need multiple agencies/tenants on separate webhook endpoints,
+    that resolution needs to happen here (e.g. via a tenant id embedded
+    in the webhook URL or a per-tenant verify token) instead of picking
+    the first active tenant.
+    """
+    try:
+        parsed = LeadParserService.parse_and_normalize(source, raw_payload)
+    except ValidationError as e:
+        # Bad/incomplete payload from the provider - not worth retrying.
+        logger.warning(f"Discarding unparseable lead from source '{source}': {e}")
+        return
+
+    with SessionLocal() as db:
+        try:
+            tenant = db.execute(
+                select(Tenant).where(Tenant.is_active.is_(True))
+            ).scalars().first()
+
+            if not tenant:
+                logger.error(f"No active tenant configured. Dropping lead from source '{source}'.")
+                return
+
+            lead = LeadRecord(
+                id=uuid.uuid4(),
+                tenant_id=tenant.id,
+                customer_name=parsed["customer_name"],
+                target_phone_number=parsed["target_phone_number"],
+                raw_webhook_payload=parsed["raw_webhook_payload"],
+            )
+            db.add(lead)
+            db.commit()
+            db.refresh(lead)
+
+            logger.info(f"Persisted lead {lead.id} for tenant {tenant.id} from source '{source}'.")
+
+            lead_id, tenant_id = str(lead.id), str(tenant.id)
+
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to ingest incoming lead from source '{source}': {str(e)}")
+            raise self.retry(exc=e, countdown=10)
+
+    process_lead_and_generate_links.delay(lead_id, tenant_id)
+
+
+@celery_app.task(name="app.workers.tasks.process_lead_and_generate_links")
 def process_lead_and_generate_links(lead_id: str, tenant_id: str):
     """
     Asynchronous processing module managing automated payload workflows.

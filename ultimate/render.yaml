@@ -51,7 +51,7 @@ services:
     env: docker
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    dockerCommand: "celery -A app.main.celery_app worker --loglevel=info --concurrency=2"
+    dockerCommand: "celery -A app.workers.celery_app:celery_app worker --loglevel=info --concurrency=2"
     plan: free
     region: frankfurt
     envVars:
